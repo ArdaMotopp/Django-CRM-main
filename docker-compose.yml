@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  crm-db:
+    image: postgres:15
+    env_file:
+      - db.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  crm-app:
+    build: .
+    depends_on:
+      - crm-db
+    environment:
+      SECRET_KEY: dev-secret-key
+      ENV_TYPE: dev
+      DBNAME: crm
+      DBUSER: crm
+      DBPASSWORD: crm
+      DBHOST: crm-db
+      DBPORT: "5432"
+      DEBUG: "1"
+      ALLOWED_HOSTS: "*,localhost,127.0.0.1"
+      DEFAULT_FROM_EMAIL: dev@example.com
+      ADMIN_EMAIL: admin@example.com
+      CELERY_BROKER_URL: memory://
+      CELERY_RESULT_BACKEND: cache+memory://
+      DOMAIN_NAME: localhost
+      SWAGGER_ROOT_URL: /
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn crm.wsgi:application --bind 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+
+  crm-web:
+    build:
+      context: ../React-CRM   # make sure the React and Django folders are siblings
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_GOOGLE_CLIENT_ID: "839716168436-m3ukvlmr1o83g877bo5ki2bp0n9rrdh6.apps.googleusercontent.com"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - crm-app
+
+volumes:
+  pgdata:
